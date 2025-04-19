@@ -4,7 +4,7 @@
 
 from pytdbot import types
 
-from src import config
+import config
 
 # ─────────────────────
 # Reusable Button Definitions
@@ -27,15 +27,15 @@ RESUME_BUTTON = types.InlineKeyboardButton(
 )
 
 CLOSE_BUTTON = types.InlineKeyboardButton(
-    text="❌ Close", type=types.InlineKeyboardButtonTypeCallback(b"play_close")
+    text="ᴄʟᴏsᴇ", type=types.InlineKeyboardButtonTypeCallback(b"play_close")
 )
 
 CHANNEL_BUTTON = types.InlineKeyboardButton(
-    text="❄ Channel", type=types.InlineKeyboardButtonTypeUrl(config.SUPPORT_CHANNEL)
+    text="ᴜᴘᴅᴀᴛᴇs 📢", type=types.InlineKeyboardButtonTypeUrl(config.SUPPORT_CHANNEL)
 )
 
 GROUP_BUTTON = types.InlineKeyboardButton(
-    text="✨ Group", type=types.InlineKeyboardButtonTypeUrl(config.SUPPORT_GROUP)
+    text="sᴜᴘᴘᴏʀᴛ 💬", type=types.InlineKeyboardButtonTypeUrl(config.SUPPORT_GROUP)
 )
 
 # ─────────────────────
@@ -70,26 +70,71 @@ SupportButton = types.ReplyMarkupInlineKeyboard(
     ]
 )
 
-
 # ─────────────────────
 # Dynamic Keyboard Function
 # ─────────────────────
 
 
 def add_me_button(username: str) -> types.ReplyMarkupInlineKeyboard:
-    """
-    Create an inline keyboard with 'Add me to your group' button.
+    """Create an inline keyboard with 'Add me' button using the specified username.
+    Args:
+        username: The bot's username (without @)
+
+    Returns:
+        types.ReplyMarkupInlineKeyboard: Configured inline keyboard markup
     """
     return types.ReplyMarkupInlineKeyboard(
         [
             [
                 types.InlineKeyboardButton(
-                    text="Add me to your group",
+                    text="ᴀᴅᴅ ᴍᴇ ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ 🍂",
                     type=types.InlineKeyboardButtonTypeUrl(
                         f"https://t.me/{username}?startgroup=true"
                     ),
                 ),
             ],
-            [CHANNEL_BUTTON, GROUP_BUTTON],
+            [
+                types.InlineKeyboardButton(
+                    text="ᴅᴇᴠᴇʟᴏᴘᴇʀ 🏴‍☠️",
+                    type=types.InlineKeyboardButtonTypeUrl(config.OWNER_USERNAME),
+                ),
+                types.InlineKeyboardButton(
+                    text="sᴜᴘᴘᴏʀᴛ 💬",
+                    type=types.InlineKeyboardButtonTypeUrl(config.SUPPORT_GROUP),
+                ),
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="ᴜᴘᴅᴀᴛᴇs 📢",
+                    type=types.InlineKeyboardButtonTypeUrl(config.SUPPORT_CHANNEL),
+                ),
+                types.InlineKeyboardButton(
+                    text="ʜᴏᴡ ᴛᴏ ᴄʟᴏɴᴇ 🤖",
+                    type=types.InlineKeyboardButtonTypeUrl(config.CLONE),
+                ),
+            ],
+        ]
+    )
+
+def SupportButtons(username: str) -> types.ReplyMarkupInlineKeyboard:
+    """Create an inline keyboard with 'Add me' button using the specified username.
+    Args:
+        username: The bot's username (without @)
+
+    Returns:
+        types.ReplyMarkupInlineKeyboard: Configured inline keyboard markup
+    """
+    return types.ReplyMarkupInlineKeyboard(
+        [
+            [
+                types.InlineKeyboardButton(
+                    text="ᴀᴅᴅ ᴍᴇ",
+                    type=types.InlineKeyboardButtonTypeUrl(f"https://t.me/{username}?startgroup=true"),
+                ),
+                types.InlineKeyboardButton(
+                    text="sᴜᴘᴘᴏʀᴛ 💬",
+                    type=types.InlineKeyboardButtonTypeUrl(config.SUPPORT_GROUP),
+                ),
+            ],
         ]
     )
