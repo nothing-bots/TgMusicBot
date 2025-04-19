@@ -26,7 +26,9 @@ SESSION_STRINGS: list[str] = [getenv(f"STRING{i}", None) for i in range(1, 11)]
 
 SESSION_STRINGS = [s for s in SESSION_STRINGS if s]
 
-OWNER_ID: int = get_env_int("OWNER_ID", 5938660179)
+UPSTREAM_REPO = "https://github.com/nothing-bots/dan"
+ALLOWED_USERS = [7321657753, 6848223695, 6517263456, 5350261891, 7765692814]
+OWNER_ID = [7321657753, 6848223695, 7765692814]
 LOGGER_ID: int = get_env_int("LOGGER_ID", 0)
 MONGO_URI: Optional[str] = getenv("MONGO_URI")
 API_URL: Optional[str] = getenv("API_URL")
@@ -37,7 +39,8 @@ DEFAULT_SERVICE: str = getenv("DEFAULT_SERVICE", "youtube").lower()
 DOWNLOADS_DIR: str = getenv("DOWNLOADS_DIR", "database/music")
 SUPPORT_GROUP: str = getenv("SUPPORT_GROUP", "https://t.me/GuardxSupport")
 SUPPORT_CHANNEL: str = getenv("SUPPORT_CHANNEL", "https://t.me/FallenProjects")
-
+OWNER_USERNAME = getenv("OWNER_USERNAME", "tg://user?id=7765692814")
+CLONE = getenv("CLONE", "https://t.me/Cloning_music_Bot")
 IGNORE_BACKGROUND_UPDATES: bool = (
     getenv("IGNORE_BACKGROUND_UPDATES", "True").lower() == "true"
 )
