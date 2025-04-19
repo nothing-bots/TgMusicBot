@@ -1,7 +1,8 @@
 #  Copyright (c) 2025 AshokShau
 #  Licensed under the GNU AGPL v3.0: https://www.gnu.org/licenses/agpl-3.0.html
-#  Part of the TgMusicBot project. All rights reserved where applicable.
-
+#  Part of the TgMusicBot project. All rights reserved where applicable.import subprocess
+import asyncio
+import subprocess
 import inspect
 import io
 import os
@@ -11,6 +12,7 @@ import socket
 import sys
 import traceback
 import uuid
+import signal
 from html import escape
 from sys import version as pyver
 from typing import Any, Optional, Tuple
@@ -19,24 +21,23 @@ import psutil
 from meval import meval
 from ntgcalls import __version__ as ntgver
 from pyrogram import __version__ as pyrover
-from pytdbot import Client, types
 from pytdbot import VERSION as pyTdVer
-from pytgcalls import __version__ as pytgver
+from pytdbot import Client, types
 
-from src.config import OWNER_ID, DEVS, LOGGER_ID
-from src.helpers import db
+import config
+from config import OWNER_ID, ALLOWED_USERS, UPSTREAM_REPO
+from pytgcalls import __version__ as pytgver
+from src.database import db
 from src.logger import LOGGER
 from src.modules.utils import Filter
-from src.helpers import chat_cache
+from src.modules.utils.cacher import chat_cache
 from src.modules.utils.play_helpers import del_msg, extract_argument
 
 
 def format_exception(
     exp: BaseException, tb: Optional[list[traceback.FrameSummary]] = None
 ) -> str:
-    """
-    Formats an exception traceback as a string, similar to the Python interpreter.
-    """
+    """Formats an exception traceback as a string, similar to the Python interpreter."""
 
     if tb is None:
         tb = traceback.extract_tb(exp.__traceback__)
@@ -52,16 +53,12 @@ def format_exception(
     if msg:
         msg = f": {msg}"
 
-    return f"Traceback (most recent call last):\n{stack}{
-    type(exp).__name__}{msg}"
+    return f"Traceback (most recent call last):\n{stack}{type(exp).__name__}{msg}"
 
 
 @Client.on_message(filters=Filter.command("eval"))
 async def exec_eval(c: Client, m: types.Message):
-    """
-    Run python code.
-    """
-    if int(m.from_id) != OWNER_ID:
+    if int(m.from_id) not in OWNER_ID:
         return None
 
     text = m.text.split(None, 1)
@@ -79,7 +76,6 @@ async def exec_eval(c: Client, m: types.Message):
             if "file" not in kwargs:
                 kwargs["file"] = out_buf
                 return print(*args, **kwargs)
-            return None
 
         eval_vars = {
             "loop": c.loop,
@@ -98,6 +94,8 @@ async def exec_eval(c: Client, m: types.Message):
             "traceback": traceback,
             "uuid": uuid,
             "io": io,
+            "chat_cache": chat_cache,
+            "db": db,
         }
 
         try:
@@ -150,15 +148,11 @@ async def exec_eval(c: Client, m: types.Message):
         return None
 
     await m.reply_text(str(result), parse_mode="html")
-    return None
 
 
 @Client.on_message(filters=Filter.command("stats"))
 async def sys_stats(client: Client, message: types.Message):
-    """
-    Get bot and system stats.
-    """
-    if message.from_id not in DEVS:
+    if int(message.from_id) not in ALLOWED_USERS:
         await del_msg(message)
         return None
 
@@ -169,7 +163,7 @@ async def sys_stats(client: Client, message: types.Message):
     hostname = socket.gethostname()
     ip_address = socket.gethostbyname(socket.gethostname())
     architecture = platform.machine()
-    mac_address = ":".join(re.findall("..", f"{uuid.getnode():012x}"))
+    mac_address = ":".join(re.findall("..", "%012x" % uuid.getnode()))
     sp = platform.system()
     ram = f"{str(round(psutil.virtual_memory().total / 1024.0 ** 3))} ɢʙ"
     p_core = psutil.cpu_count(logical=False)
@@ -182,7 +176,7 @@ async def sys_stats(client: Client, message: types.Message):
         else:
             cpu_freq = f"{round(cpu_freq, 2)}ᴍʜᴢ"
     except Exception as e:
-        LOGGER.warning("Error getting CPU frequency: %s", e)
+        LOGGER.warning(f"Error getting CPU frequency: {e}")
         cpu_freq = "ғᴀɪʟᴇᴅ ᴛᴏ ғᴇᴛᴄʜ"
 
     hdd = psutil.disk_usage("/")
@@ -226,33 +220,25 @@ async def sys_stats(client: Client, message: types.Message):
 <b>Total Cores:</b> {t_core}
 <b>CPU Frequency:</b> {cpu_freq}""",
     )
-    return None
 
 
-@Client.on_message(filters=Filter.command("activevc"))
+@Client.on_message(filters=Filter.command("ac"))
 async def active_vc(_: Client, message: types.Message):
-    """
-    Get active voice chats.
-    """
-    if message.from_id not in DEVS:
+    if int(message.from_id) not in ALLOWED_USERS:
         await del_msg(message)
-        return None
+        return
 
     active_chats = chat_cache.get_active_chats()
     if not active_chats:
         await message.reply_text("No active voice chats.")
-        return None
+        return
 
     text = f"🎵 <b>Active Voice Chats</b> ({len(active_chats)}):\n\n"
 
     for chat_id in active_chats:
         queue_length = chat_cache.count(chat_id)
         if current_song := chat_cache.get_current_song(chat_id):
-            song_info = f"🎶 <b>Now Playing:</b> <a href='{
-            current_song.url}'>{
-            current_song.name}</a> - {
-            current_song.artist} ({
-            current_song.duration}s)"
+            song_info = f"🎶 <b>Now Playing:</b> <a href='{current_song.url}'>{current_song.name}</a> - {current_song.artist} ({current_song.duration}s)"
         else:
             song_info = "🔇 No song playing."
 
@@ -268,19 +254,15 @@ async def active_vc(_: Client, message: types.Message):
     reply = await message.reply_text(text, disable_web_page_preview=True)
     if isinstance(reply, types.Error):
         return await message.reply_text(reply.message)
-    return None
 
 
 @Client.on_message(filters=Filter.command("logger"))
 async def logger(c: Client, message: types.Message):
-    """
-    Enable or disable logging.
-    """
-    if message.from_id not in DEVS:
+    if int(message.from_id) not in ALLOWED_USERS:
         await del_msg(message)
-        return None
+        return
 
-    if LOGGER_ID == 0 or not LOGGER_ID:
+    if config.LOGGER_ID == 0 or not config.LOGGER_ID:
         await message.reply_text("Please set LOGGER_ID in .env first.")
         return None
 
@@ -291,17 +273,100 @@ async def logger(c: Client, message: types.Message):
             "Usage: /logger [enable|disable|on|off]\n\nCurrent status: "
             + ("enabled" if enabled else "disabled")
         )
-        return None
+        return
 
     if args.lower() in ["on", "enable"]:
         await db.set_logger_status(c.me.id, True)
         await message.reply_text("Logger enabled.")
-        return None
-    if args.lower() in ["off", "disable"]:
+    elif args.lower() in ["off", "disable"]:
         await db.set_logger_status(c.me.id, False)
         await message.reply_text("Logger disabled.")
-        return None
-    await message.reply_text(
-        f"Usage: /logger [enable|disable]\n\nYour argument is {args}"
+    else:
+        await message.reply_text(
+            f"Usage: /logger [enable|disable]\n\nYour argument is {args}"
+        )
+
+
+
+
+import asyncio
+import os
+import subprocess
+import sys
+from html import escape
+import signal
+
+from config import UPSTREAM_REPO, ALLOWED_USERS
+from pytdbot import Client, types
+from src.logger import LOGGER
+from src.modules.utils import Filter
+
+
+@Client.on_message(Filter.command("update"))
+async def update_bot(c: Client, m: types.Message):
+    if int(m.from_id) not in ALLOWED_USERS:
+        await m.delete()
+        return
+
+    status_msg = await m.reply_text("🔄 Pulling latest updates from upstream...")
+
+    try:
+        # Pull the latest updates from the upstream repository
+        pull_process = subprocess.run(
+            ["git", "pull", UPSTREAM_REPO],
+            capture_output=True, text=True
+        )
+        pull_output = pull_process.stdout + pull_process.stderr
+
+        if "Already up to date." in pull_output:
+            await status_msg.edit_text("✅ Bot is already up to date.")
+            return
+
+        # Install dependencies after pulling changes
+        await status_msg.edit_text("📦 Installing updated dependencies...")
+
+        if os.path.isfile("requirements.txt"):
+            install_process = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
+                capture_output=True, text=True
+            )
+            install_output = install_process.stdout + install_process.stderr
+            LOGGER.info("Dependencies installed:\n" + install_output)
+
+        # Notify that the update is complete and restart the bot
+        await status_msg.edit_text("✅ Update complete! Restarting bot...")
+
+        # Start new session with bash script
+        subprocess.Popen(["bash", "start"])
+
+        # Kill current bot process
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    except Exception as e:
+        LOGGER.error(f"Update : {e}")
+        await status_msg.edit_text(
+            f"❌ Update failed:\n<pre>{escape(str(e))}</pre>",
+            parse_mode="html"
+        )
+
+@Client.on_message(Filter.command("restart"))
+async def restart_bot(c: Client, m: types.Message):
+    if int(m.from_id) not in ALLOWED_USERS:
+        await m.delete()
+        return
+
+    status_msg = await m.reply_text("🔄 Restarting bot...")
+
+    try:
+        # Start new session with bash script
+        subprocess.Popen(["bash", "start"])
+
+        # Kill current bot process to restart
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    except Exception as e:
+        LOGGER.error(f"Restart : {e}")
+        await status_msg.edit_text(
+            f"❌ Restart failed:\n<pre>{escape(str(e))}</pre>",
+            parse_mode="html"
     )
-    return None
