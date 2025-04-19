@@ -24,8 +24,8 @@ from pyrogram import __version__ as pyrover
 from pytdbot import VERSION as pyTdVer
 from pytdbot import Client, types
 
-import config
-from config import OWNER_ID, ALLOWED_USERS, UPSTREAM_REPO
+import src.config
+from src.config import OWNER_ID, ALLOWED_USERS, UPSTREAM_REPO
 from pytgcalls import __version__ as pytgver
 from src.database import db
 from src.logger import LOGGER
