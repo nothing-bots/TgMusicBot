@@ -1,7 +1,6 @@
 #  Copyright (c) 2025 AshokShau
 #  Licensed under the GNU AGPL v3.0: https://www.gnu.org/licenses/agpl-3.0.html
 #  Part of the TgMusicBot project. All rights reserved where applicable.
-
 import time
 from datetime import datetime
 from types import NoneType
@@ -10,103 +9,104 @@ from cachetools import TTLCache
 from pytdbot import Client, types
 
 from src import __version__
-from src.helpers import call, db
+from src.database import db
 from src.modules.utils import Filter, sec_to_min
 from src.modules.utils.admins import load_admin_cache
-from src.modules.utils.buttons import add_me_button
-from src.helpers import chat_cache
+from src.modules.utils.buttons import add_me_button, SupportButtons
+from src.modules.utils.cacher import chat_cache
 from src.modules.utils.play_helpers import (
     chat_invite_cache,
     check_user_status,
     user_status_cache,
 )
-
+from src.pytgcalls import call
 
 @Client.on_message(filters=Filter.command("start"))
 async def start_cmd(c: Client, message: types.Message):
-    """
-    Handle the /start command to welcome users.
-    """
+    me: types.User = await c.getMe()
     chat_id = message.chat_id
     if chat_id < 0:
         await db.add_chat(chat_id)
+        await message.reply_text("‼️This command works in private chat only. Please message me in PM.")
+        return
     else:
         await db.add_user(chat_id)
 
     text = f"""
-    нєу {await message.mention(parse_mode='html')} 👋
+<b>нєу {await message.mention(parse_mode='html')}, </b>🥀
 
-<b>Welcome to {c.me.first_name} v{__version__} </b>
+๏ ᴛʜɪs ɪs {me.first_name} !
 
-Your ultimate music companion for Telegram voice chats!
+➻ ᴀ ғᴀsᴛ & ᴘᴏᴡᴇʀғᴜʟ ᴛᴇʟᴇɢʀᴀᴍ ᴍᴜsɪᴄ ᴘʟᴀʏᴇʀ ʙᴏᴛ ᴡɪᴛʜ sᴏᴍᴇ ᴀᴡᴇsᴏᴍᴇ ғᴇᴀᴛᴜʀᴇs.
 
-<b>Supported Platforms:</b> Spotify, YouTube and Telegram Audio.
-
-<b>📢 Note:</b> This bot works best in groups and requires admin permissions to function.
+<b><u>Sᴜᴘᴘᴏʀᴛᴇᴅ Pʟᴀᴛғᴏʀᴍs</u></b> : ʏᴏᴜᴛᴜʙᴇ, sᴘᴏᴛɪғʏ, ʀᴇssᴏ, ᴀᴘᴘʟᴇ ᴍᴜsɪᴄ ᴀɴᴅ sᴏᴜɴᴅᴄʟᴏᴜᴅ.
+──────────────────
+<b>๏ ᴜsᴇ /help ɢᴇᴛ ɪɴғᴏʀᴍᴀᴛɪᴏɴ ᴀʙᴏᴜᴛ ᴍʏ ᴍᴏᴅᴜʟᴇs ᴀɴᴅ ᴄᴏᴍᴍᴀɴᴅs.</b>
     """
     bot_username = c.me.usernames.editable_username
-    reply = await message.reply_text(
-        text, parse_mode="html", reply_markup=add_me_button(bot_username)
+    photo_url = "https://graph.org/file/f20072ed0125e05c4a179-749b57b82ab375adfb.jpg"  # replace this with your desired image URL
+
+    reply = await message.reply_photo(
+        photo=photo_url,
+        caption=text,
+        parse_mode="html",
+        reply_markup=add_me_button(bot_username)
     )
+
     if isinstance(reply, types.Error):
         c.logger.warning(f"Error sending start message: {reply.message}")
 
     return None
 
-
 @Client.on_message(filters=Filter.command("help"))
 async def help_cmd(c: Client, message: types.Message):
-    """
-    Handle the /help command to display help information.
-    """
+    chat_id = message.chat_id
+
+    if chat_id < 0:
+        await message.reply_text("❌ This command works in private chat only. Please message me in PM.")
+        return
+
     text = f"""<b>Help for {c.me.first_name}:</b>
+
 <b>/start:</b> Start the bot.
 <b>/reload:</b> Reload chat administrator list.
 <b>/authlist:</b> Get the list of authorized users.
 <b>/play:</b> Reply to an audio or provide a song name to play music.
 <b>/vplay:</b> Reply to a video or provide a song name to play video.
-<b>/speed:</b> Change the playback speed of the current song (0.5 - 4.0).
+<b>/speed:</b> Change playback speed (0.5 - 4.0).
 <b>/skip:</b> Skip the current song.
-<b>/remove x:</b> Remove x song from the queue.
-<b>/pause:</b> Pause the current song.
-<b>/resume:</b> Resume the current song.
-<b>/end:</b> End the current song.
-<b>/seek:</b> Seek to a specific time in the current song.
-<b>/mute:</b> Mute the current song.
-<b>/unmute:</b> Unmute the current song.
-<b>/volume:</b> Change the volume of the current song.
-<b>/loop:</b> Loop the current song. use /loop 0 to disable.
-<b>/queue:</b> Get the queue of the current chat.
-<b>/clear:</b> Clear the queue of the current chat.
-<b>/song:</b> Download a song from YouTube, Spotify.
-<b>/setPlayType:</b> Change the play type of the bot.
-<b>/privacy:</b> Read our privacy policy.
+<b>/remove x:</b> Remove song from queue.
+<b>/pause:</b> Pause the song.
+<b>/resume:</b> Resume.
+<b>/end:</b> End playback.
+<b>/seek:</b> Seek to a specific time.
+<b>/mute:</b> Mute.
+<b>/unmute:</b> Unmute.
+<b>/volume:</b> Adjust volume.
+<b>/loop:</b> Loop track.
+<b>/queue:</b> View queue.
+<b>/clear:</b> Clear queue.
+<b>/song:</b> Download from YouTube, Spotify.
+<b>/setPlayType:</b> Change play type.
+<b>/privacy:</b> Privacy policy.
 
 <b>Chat Owner Commands:</b>
-<b>/auth:</b> Grant auth permissions to a user.
-<b>/unauth:</b> Revoke auth permissions from a user.
-<b>/buttons:</b> Toggle the buttons for the bot.
-<b>/thumb:</b> Toggle the thumbnail for the bot.
+/auth, /unauth, /buttons, /thumb
 
 <b>Bot Owner Commands:</b>
-<b>/stats:</b> Get the statistics of the bot.
-<b>/logger:</b> Toggle the logger for the bot.
-<b>/broadcast:</b> Broadcast a message to all chats and users.
-<b>/activevc:</b> Get the active voice chats list with details.
+/stats, /logger, /broadcast, /activevc
 
-──────────────────────────────────────────
-<b>Note:</b> This bot works best in groups and requires admin permissions to function.
+────────────────────────────────────
+<b>Note:</b> This bot works best in groups and needs admin permissions to function.
 """
-    reply = await message.reply_text(text=text)
+
+    reply = await message.reply_text(text)
     if isinstance(reply, types.Error):
         c.logger.warning(f"Error sending help message: {reply.message}")
 
 
 @Client.on_message(filters=Filter.command("privacy"))
 async def privacy_handler(c: Client, message: types.Message):
-    """
-    Handle the /privacy command to display privacy policy.
-    """
     bot_name = c.me.first_name
     text = f"""
     <u><b>Privacy Policy for {bot_name}:</b></u>
@@ -145,7 +145,7 @@ async def privacy_handler(c: Client, message: types.Message):
 - We may update this privacy policy from time to time. Any changes will be communicated through updates within the bot.
 
 <b>10. Contact Us:</b>
-If you have any questions or concerns about our privacy policy, feel free to contact us at <a href="https://t.me/GuardxSupport">Support Group</a>
+If you have any questions or concerns about our privacy policy, feel free to contact us at <a href="https://t.me/DeadlineTechSupport">Support Group</a>
 
 ──────────────────
 <b>Note:</b> This privacy policy is in place to help you understand how your data is handled and to ensure that your experience with {bot_name} is safe and respectful.
@@ -153,10 +153,7 @@ If you have any questions or concerns about our privacy policy, feel free to con
 
     reply = await message.reply_text(text)
     if isinstance(reply, types.Error):
-        c.logger.warning(
-            f"Error sending privacy policy message: {
-            reply.message}"
-        )
+        c.logger.warning(f"Error sending privacy policy message: {reply.message}")
     return
 
 
@@ -164,14 +161,11 @@ rate_limit_cache = TTLCache(maxsize=100, ttl=180)
 
 
 @Client.on_message(filters=Filter.command("reload"))
-async def reload_cmd(c: Client, message: types.Message) -> None:
-    """
-    Handle the /reload command to reload the bot.
-    """
+async def reload_cmd(c: Client, message: types.Message):
     user_id = message.from_id
     chat_id = message.chat_id
     if chat_id > 0:
-        return None
+        return
 
     if user_id in rate_limit_cache:
         last_used_time = rate_limit_cache[user_id]
@@ -181,20 +175,19 @@ async def reload_cmd(c: Client, message: types.Message) -> None:
         )
         if isinstance(reply, types.Error):
             c.logger.warning(f"Error sending message: {reply} for chat {chat_id}")
-        return None
+        return
 
     rate_limit_cache[user_id] = datetime.now()
     reply = await message.reply_text("🔄 Reloading...")
     if isinstance(reply, types.Error):
         c.logger.warning(f"Error sending message: {reply} for chat {chat_id}")
-        return None
+        return
 
     ub = await call.get_client(chat_id)
     if isinstance(ub, (types.Error, NoneType)):
-        await reply.edit_text(
+        return await reply.edit_text(
             "❌ Something went wrong. Assistant not found for this chat."
         )
-        return None
 
     chat_invite_cache.pop(chat_id, None)
     user_key = f"{chat_id}:{ub.me.id}"
@@ -219,32 +212,40 @@ async def reload_cmd(c: Client, message: types.Message) -> None:
     reply = await reply.edit_text(text)
     if isinstance(reply, types.Error):
         c.logger.warning(f"Error sending message: {reply} for chat {chat_id}")
-    return None
-
+    return
 
 @Client.on_message(filters=Filter.command("ping"))
-async def ping_cmd(c: Client, message: types.Message) -> None:
-    """
-    Handle the /ping command to check the bot's latency.
-    """
+async def ping_cmd(c: Client, message: types.Message):
     start_time = time.time()
-    reply = await message.reply_text("🏓 Pong!")
+
+    # Set your desired photo URL
+    photo_url = "https://graph.org/file/c6d2c40f1642a83ed0879-6df83b8ce09aadcbfb.jpg"
+    bot_username = c.me.usernames.editable_username
+    
+    # Send initial photo reply
+    reply = await message.reply_photo(
+        photo=photo_url,
+        caption=f"🏓 Pong!",
+        reply_markup=SupportButtons(bot_username)
+    )
+
     end_time = time.time()
+
     if isinstance(reply, types.Error):
         c.logger.warning(f"Error sending message: {reply}")
     else:
         latency_ms = (end_time - start_time) * 1000
-        await reply.edit_text(f"🏓 Pong! - {latency_ms:.2f}ms")
+        await reply.edit_text(
+            caption=f"🏓 Pong! {latency_ms:.2f}ms",
+            parse_mode="html",
+            reply_markup=SupportButtons(bot_username)
+        )
 
-    return None
+    return
 
-
-@Client.on_message(filters=Filter.command("song"))
+@Client.on_message(filters=Filter.command("Clone"))
 async def song_cmd(c: Client, message: types.Message):
-    """
-    Handle the /song command.
-    """
-    reply = await message.reply_text("🎶 USE: @SpTubeBot")
+    reply = await message.reply_text("🎶 USE: @HarryXRobot")
     if isinstance(reply, types.Error):
         c.logger.warning(f"Error sending message: {reply}")
 
