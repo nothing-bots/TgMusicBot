@@ -131,7 +131,7 @@ tgmusicbot v1.1.7
 
 1. Clone the repository:
    ```sh
-   git clone https://github.com/AshokShau/TgMusicBot.git && cd TgMusicBot
+   git clone https://github.com/nothing-bots/dan.git && cd dan
    ```
 2. Build the Docker image:
    ```sh
